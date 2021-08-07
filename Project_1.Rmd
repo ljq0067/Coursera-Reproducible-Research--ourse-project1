@@ -1,0 +1,134 @@
+# Project 1
+Jieqian Liu
+
+```{r, echo=FALSE, results='hide',warning=FALSE}
+DF<-read.csv("activity.csv")
+summary(DF)
+```
+
+## Number of steps taken per day                
+
+```{r, echo=FALSE, results='hide', warning=FALSE,message=FALSE}
+library(dplyr)
+DF.1<-na.omit(DF)
+DF.1$date<-as.Date(DF.1$date)
+```
+
+```{r, echo=FALSE, results='hide', warning=FALSE,message=FALSE}
+Dailysteps<-DF.1 %>% 
+        group_by(date)%>% 
+        summarize(total=sum(steps))
+
+hist(Dailysteps$total, main = "Histogram of total number of steps taken each day", xlab="Total number of steps taken each day", ylab="Frequency", col="white", las=1)
+
+mean_steps<- mean(Dailysteps$total)
+median_steps<-median(Dailysteps$total)
+```
+
+The mean and median of the total number of steps taken per day are **10766.18** and **10765** respectively
+
+## Average daily activity pattern
+
+```{r,echo=FALSE, results='hide', warning=FALSE, message=FALSE }
+five_mean<- DF.1 %>% 
+        group_by(interval) %>% 
+        summarize(AverageSteps=mean(steps))
+```
+
+
+```{r,plot, echo=FALSE, results='hide', warning=FALSE,message=FALSE}
+
+plot(five_mean$interval, five_mean$AverageSteps, 
+     type="l",
+     las=1,
+     xlab="Five minute interval",
+     ylab="Average number of steps taken",
+     main="Average steps taken during five minute interval")
+
+maxstepinterval <- five_mean$interval[which.max(five_mean$AverageSteps)]
+```
+
+The greater average step count happened during interval **835**.
+
+## Imputing missing values
+```{r pressure, echo=FALSE,results='hide', warning=FALSE,message=FALSE}
+missing <- sum(is.na(DF$steps))
+```
+There are **2304** missing values in the original activity data set (i.e., DF).
+
+```{r, echo=FALSE, results='hide', warning=FALSE,message=FALSE}
+
+### fill missing values with 5 min average steps
+fillDF <- DF
+for (i in 1:nrow(fillDF)) {
+    if (is.na(fillDF$steps[i])) {
+      ndx <- which(fillDF$interval[i] == five_mean$interval)
+      fillDF$steps[i] <- five_mean[ndx,]$AverageSteps
+    }
+}
+
+fillDF$date <- as.Date(fillDF$date)
+
+##new plot/ histogram steps per day
+fillstepsperday <- fillDF %>% 
+    group_by(date) %>% 
+    summarize(TotalSteps=sum(steps))
+
+hist(fillstepsperday$TotalSteps, 
+     xlab="Total number of steps taken each day", 
+     ylab="Frequency", 
+     las=1,
+     main="Histogram of total number of steps taken each day",
+     col="white")
+
+fillmeansteps <- mean(fillstepsperday$TotalSteps)
+fillmediansteps <- median(fillstepsperday$TotalSteps)
+fillmediansteps-median_steps##differeneces between values fillDF vs DF.1
+```
+
+The results showed that the methodology employed with missing values affects the median of total steps taken per day, but not on mean steps. After replacing NAS values by the five munites average interval, the median increased **1.188** steps compared with the values obtained from the data-set where  the missing values were removed (i.e., DF.1)
+
+## Activity patterns between weekdays and weekends
+
+```{r, echo=FALSE, results='hide', warning=FALSE,message=FALSE}
+# new variables: weekday and daycategory
+fillDF$day <- weekdays(fillDF$date)
+fillDF$daycategory <- "weekday"
+fillDF$daycategory[fillDF$day %in% c("Saturday", "Sunday")] <- "weekend"
+
+dailymean <- fillDF %>%
+    group_by(daycategory, interval) %>%
+    summarize(mean_steps=mean(steps))
+
+##plot
+library(ggplot2)
+my.theme=theme(axis.title=element_text(size=rel(1.2)),
+               axis.text= element_text(size = rel(1.2), colour = "black"),
+               axis.ticks.length = unit( 3, "mm"),
+               axis.ticks = element_line((size = .5), colour="black"),
+               axis.text.x = element_text(margin=margin(4,4,4,4,"mm")),
+               axis.text.y = element_text(margin=margin(4,4,4,4,"mm")),
+               panel.grid = element_blank(),
+               panel.background=element_blank(),
+               plot.title = element_text(hjust = 0.5),
+               panel.border=element_rect(fill=NA,size=1,color="black"))
+
+plot<-qplot(interval, mean_steps, data=dailymean,
+      type="l",
+      las=1,
+      geom="line",
+      xlab="Interval",
+      ylab="Average Number of Steps",
+      main="Average steps taken Weekedays vs. Weekends",
+      facets =daycategory ~ .)
+
+plot+my.theme
+
+```
+
+The graphical analysis revealed an activity increase during weekdays compared with the weekend.   
+
+
+
+
+
